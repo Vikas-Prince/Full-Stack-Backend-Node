@@ -7,15 +7,30 @@ let port = process.env.PORT || 8080;
 
 app.use(express.json());
 
+// health Check Route
 app.get("/", (req, res) => {
   res.send("ok!");
 });
 
+//get location
 app.get("/location", async (req, res) => {
   let query = {};
   let collection = "locations";
-  //   let authKey = req.headers["x-auth-token"];
-  //   if (authKey == key) {
+  let output = await getData(collection, query);
+  res.status(200).send(output);
+});
+
+//get restaurants
+app.get("/restaurants", async (req, res) => {
+  let query = {};
+  let stateId = Number(req.query.stateId);
+  if (stateId) {
+    query = {
+      state_id: stateId,
+    };
+  }
+
+  let collection = "restaurants";
   let output = await getData(collection, query);
   res.status(200).send(output);
 });
