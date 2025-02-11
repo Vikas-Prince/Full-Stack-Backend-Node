@@ -35,6 +35,14 @@ app.get("/restaurants", async (req, res) => {
   res.status(200).send(output);
 });
 
+//get mealType
+app.get("/mealType", async function (req, res) {
+  const query = {};
+  const collection = "mealType";
+  let output = await getData(collection, query);
+  res.status(200).send(output);
+});
+
 app.listen(port, (err) => {
   dbConnect();
   if (err) throw err;
