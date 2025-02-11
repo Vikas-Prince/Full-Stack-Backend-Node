@@ -1,12 +1,23 @@
 import express from "express";
 import dotenv from "dotenv";
-import { dbConnect } from "./src/controller/dbController";
+import { dbConnect, getData } from "./src/controller/dbController";
 dotenv.config();
 let app = express();
 let port = process.env.PORT || 8080;
 
+app.use(express.json());
+
 app.get("/", (req, res) => {
-  res.send("Welcome to Your World!");
+  res.send("ok!");
+});
+
+app.get("/location", async (req, res) => {
+  let query = {};
+  let collection = "locations";
+  //   let authKey = req.headers["x-auth-token"];
+  //   if (authKey == key) {
+  let output = await getData(collection, query);
+  res.status(200).send(output);
 });
 
 app.listen(port, (err) => {

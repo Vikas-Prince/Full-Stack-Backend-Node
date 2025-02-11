@@ -9,9 +9,20 @@ let db;
 async function dbConnect() {
   const client = new MongoClient(mongoUrl);
   await client.connect();
-  db = client.db("Food_Store");
+  db = client.db("food_store");
   //   console.log(db);
   console.log(`Connected to database`);
 }
 
-export { dbConnect };
+async function getData(colName, query) {
+  let output;
+  try {
+    output = await db.collection(colName).find(query).toArray();
+  } catch (err) {
+    output = { Error: "Error in getting data" };
+  }
+
+  return output;
+}
+
+export { dbConnect, getData };
