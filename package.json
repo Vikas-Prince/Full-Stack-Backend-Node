@@ -1,0 +1,38 @@
+{
+  "name": "food-delivery-backend-node",
+  "version": "1.0.0",
+  "description": "Developing a scalable food delivery backend with Node.js, using RESTful APIs and JWT authentication for secure user and admin management.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Vikas-Prince/Food-Delivery-Backend-Node.git"
+  },
+  "keywords": [
+    "Food",
+    "Node",
+    "MERN",
+    "FullStack"
+  ],
+  "author": "Vikas Prince",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Vikas-Prince/Food-Delivery-Backend-Node/issues"
+  },
+  "homepage": "https://github.com/Vikas-Prince/Food-Delivery-Backend-Node#readme",
+  "dependencies": {
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mongodb": "^6.13.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.8",
+    "@babel/preset-env": "^7.26.8",
+    "@babel/register": "^7.25.9"
+  }
+}
