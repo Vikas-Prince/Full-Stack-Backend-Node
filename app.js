@@ -5,12 +5,14 @@ import {
   getData,
   getDataSort,
   getDataSortLimit,
+  getMenuData,
 } from "./src/controller/dbController";
+import cors from "cors";
 
 dotenv.config();
 let app = express();
 let port = process.env.PORT || 8080;
-
+app.use(cors());
 app.use(express.json());
 
 // health Check Route
@@ -21,13 +23,13 @@ app.get("/", (req, res) => {
 //get location
 app.get("/location", async (req, res) => {
   let query = {};
-  let collection = "locations";
+  let collection = "location";
   let output = await getData(collection, query);
   res.status(200).send(output);
 });
 
 //get restaurants
-app.get("/restaurants", async (req, res) => {
+app.get("/restaurant", async (req, res) => {
   let query = {};
   let stateId = Number(req.query.stateId);
   if (stateId) {
@@ -89,6 +91,49 @@ app.get("/filters/:mealId", async (req, res) => {
   let output = await getDataSortLimit(collection, query, sort, skip, limit);
   res.status(200).send(output);
 });
+
+//details of selected restaurant
+app.get("/details/:id", async (req, res) => {
+  let query = {};
+  let collection = "restaurants";
+  let restId = Number(req.params.id);
+  if (restId > 0) {
+    query = {
+      restaurant_id: restId,
+    };
+    let output = await getData(collection, query);
+    res.status(200).send(output);
+  }
+});
+
+//menu details of particular restaurant
+app.get("/menu/:id", async (req, res) => {
+  let query = {};
+  let collection = "menu";
+  let restId = Number(req.params.id);
+  if (restId > 0) {
+    query = {
+      restaurant_id: restId,
+    };
+    let output = await getMenuData(collection, query);
+    res.status(200).send(output);
+  } else {
+    res.status(404).send("<p>Menu is Not Available at this time</p>");
+  }
+});
+
+//menu details
+app.post("/menuDetails", async (req, res) => {
+  if (Array.isArray(req.body.id)) {
+    let query = { menu_id: { $in: req.body.id } };
+    let collection = "menu";
+    let output = await getData(collection, query);
+    res.status(200).send(output);
+  } else {
+    res.send(`Please pass data in format of {"id:[1,2,3]}`);
+  }
+});
+
 
 
 app.listen(port, (err) => {

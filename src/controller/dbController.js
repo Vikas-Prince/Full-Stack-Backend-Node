@@ -53,4 +53,26 @@ async function getDataSortLimit(colName, query, sort, skip, limit) {
   return output;
 }
 
-export { dbConnect, getData, getDataSort, getDataSortLimit };
+async function getMenuData(colName, query) {
+  let output;
+  try {
+    output = await db.collection(colName).find(query).toArray();
+  } catch (err) {
+    output = { Error: "Error in getting data" };
+  }
+
+  return output;
+}
+
+async function postMenuDetails(colName, query) {
+  let output;
+  try {
+    output = await db.collection(colName).insertOne(query);
+  } catch {
+    output = { Error: "Error in posting data" };
+  }
+
+  return output;
+}
+
+export { dbConnect, getData, getDataSort, getDataSortLimit, getMenuData };
