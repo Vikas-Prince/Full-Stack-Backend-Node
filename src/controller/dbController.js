@@ -75,4 +75,21 @@ async function postMenuDetails(colName, query) {
   return output;
 }
 
-export { dbConnect, getData, getDataSort, getDataSortLimit, getMenuData };
+async function updateData(colName, condition, data) {
+  let output;
+  try {
+    output = await db.collection(colName).updateOne(condition, data);
+  } catch (err) {
+    output = { response: "Error In Updating Data" };
+  }
+  return output;
+}
+
+export {
+  dbConnect,
+  getData,
+  getDataSort,
+  getDataSortLimit,
+  getMenuData,
+  updateData,
+};

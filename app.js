@@ -6,6 +6,7 @@ import {
   getDataSort,
   getDataSortLimit,
   getMenuData,
+  updateData,
 } from "./src/controller/dbController";
 import cors from "cors";
 
@@ -134,7 +135,38 @@ app.post("/menuDetails", async (req, res) => {
   }
 });
 
+//get Orders
+app.get("/orders", async (req, res) => {
+  let query = {};
+  let collection = "orders";
+  if (req.query.email) {
+    query = { email: req.query.email };
+  }
+  let output = await getData(collection, query);
+  res.status(200).send(output);
+});
 
+//place Orders
+app.post("/placeOrder", async (req, res) => {
+  let data = req.body;
+  console.log(data);
+  let collection = "orders";
+  let output = await postData(collection, data);
+  res.status(200).send(`Order Placed ${output}`);
+});
+
+// update order
+app.put("/updateOrder", async (req, res) => {
+  let collection = "orders";
+  let condition = { _id: new ObjectId(req.body._id) };
+  let data = {
+    $set: {
+      status: req.body.status,
+    },
+  };
+  let output = await updateData(collection, condition, data);
+  res.status(200).send(output);
+});
 
 app.listen(port, (err) => {
   dbConnect();
