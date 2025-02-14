@@ -1,0 +1,165 @@
+pipeline {
+    agent { label "slave" }
+
+    tools {
+        dockerTool 'docker' 
+    }
+
+    environment {
+        SONAR_HOME = 'sonar-scanner'
+    }
+
+    stages {
+        
+        // Clean up workspace to avoid issues with old build artifacts
+        stage("Clean up workspace") {
+            steps {
+                script {
+                    cleanWs()
+                }
+            }
+        }
+
+        // Checkout source code from GitHub
+        stage("Checkout SCM From GitHub") {
+            steps {
+                git branch: 'main', url: 'https://github.com/Vikas-Prince/Food-Delivery-Backend-Node.git'
+                echo "Code downloaded successfully"
+            }
+        }
+
+        // Run unit tests
+        stage("Test the application") {
+            steps {
+                sh "npm run test"
+            }
+        }
+
+        // Scan file system for vulnerabilities with Trivy
+        stage("File System Scans for Vulnerabilities") {
+            steps {
+                sh "trivy fs --format json -o trivy-fs-report.json ."
+                echo "Trivy scan successful"
+            }
+        }
+
+        // SonarQube code quality check
+        stage("Checking Code Quality") {
+            steps {
+                script {
+                    withSonarQubeEnv('sonar-scanner') {
+                        sh """
+                        $SONAR_HOME/bin/sonar-scanner \
+                            -Dsonar.projectName=MERN-Backend \
+                            -Dsonar.projectKey="MERN-Backend" \
+                            -Dsonar.sources=. \
+                            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+                        """
+                    }
+                }
+            }
+        }
+
+        // Wait for SonarQube Quality Gate result
+        stage("Quality Gate") {
+            steps {
+                script {
+                    def qualityGate = waitForQualityGate(credentialsId: 'sonar-token', abortPipeline: true)
+                    if (qualityGate.status != 'OK') {
+                        error("Quality Gate failed: ${qualityGate.status}")
+                    }
+                }
+            }
+        }
+
+        // Build Docker Image
+        stage("Build Docker Image") {
+            steps {
+                withDockerRegistry(credentialsId: 'docker-cred', url: "https://docker.io") {
+                    sh "docker build -t vikasprince/MERN-Backend:v1 ."
+                    echo "Docker image built successfully"
+                }
+            }
+        }
+
+        // Trivy scan the Docker image for vulnerabilities
+        stage("Trivy Docker Image Scans for Vulnerabilities") {
+            steps {
+                sh "trivy image --format json -o trivy-image-report.json vikasprince/MERN-Backend:v1"
+                echo "Docker image scan completed"
+            }
+        }
+
+        // Push Docker image to Docker Hub
+        stage("Push Image to Docker Hub") {
+            steps {
+                withDockerRegistry(credentialsId: 'docker-cred', url: "https://docker.io") {
+                    sh "docker push vikasprince/MERN-Backend:v1"
+                    echo "Successfully pushed Docker image to Docker Hub"
+                }
+            }
+        }
+
+    }
+
+    // Post actions on pipeline success
+    post {
+        success {
+            script {
+                // Archive artifacts including build logs
+                archiveArtifacts artifacts: '**/*.json, **/*.log', allowEmptyArchive: true
+
+                // Send email notification with build log and Trivy scan results
+                emailext(
+                    to: "vikasprince30809@gmail.com",
+                    subject: "Jenkins Build Notification: ${env.JOB_NAME}",
+                    body: """
+                    Hi Team,
+
+                    The build for job '${env.JOB_NAME}' has completed!
+
+                    Build Details:
+                    - Build Number: ${env.BUILD_NUMBER}
+                    - Build Status: ${currentBuild.currentResult}
+                    - Build Duration: ${currentBuild.durationString}
+                    - Build URL: ${env.BUILD_URL}
+
+                    Regards,
+                    Jenkins
+                    """,
+                    from: "jenkins@gmail.com",
+                    attachmentsPattern: "trivy*.json, *.log"  
+                )
+            }
+        }
+
+        failure {
+            script {
+                archiveArtifacts artifacts: '**/*.json, **/*.log', allowEmptyArchive: true
+
+                emailext(
+                    to: "vikasprince30809@gmail.com",
+                    subject: "Jenkins Build Failed: ${env.JOB_NAME}",
+                    body: """
+                    Hi Team,
+
+                    The build for job '${env.JOB_NAME}' has failed!
+
+                    Build Details:
+                    - Build Number: ${env.BUILD_NUMBER}
+                    - Build Status: ${currentBuild.currentResult}
+                    - Build Duration: ${currentBuild.durationString}
+                    - Build URL: ${env.BUILD_URL}
+
+                    Please check the Jenkins console for further details.
+
+                    Regards,
+                    Jenkins
+                    """,
+                    from: "jenkins@gmail.com",
+                    attachmentsPattern: "trivy*.json, *.log"  
+                )
+            }
+        }
+    }
+}
