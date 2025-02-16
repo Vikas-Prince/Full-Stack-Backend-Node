@@ -85,6 +85,16 @@ async function updateData(colName, condition, data) {
   return output;
 }
 
+async function deleteData(colName, condition) {
+  let output;
+  try {
+    output = await db.collection(colName).deleteOne(condition);
+  } catch (err) {
+    output = { response: "Error In Deleting Data" };
+  }
+  return output;
+}
+
 export {
   dbConnect,
   getData,
@@ -92,4 +102,5 @@ export {
   getDataSortLimit,
   getMenuData,
   updateData,
+  deleteData,
 };

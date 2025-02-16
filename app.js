@@ -7,6 +7,7 @@ import {
   getDataSortLimit,
   getMenuData,
   updateData,
+  deleteData,
 } from "./src/controller/dbController";
 import cors from "cors";
 
@@ -17,7 +18,7 @@ app.use(cors());
 app.use(express.json());
 
 // health Check Route
-app.get("/", (req, res) => {
+app.get("/health", (req, res) => {
   res.send("ok!");
 });
 
@@ -166,6 +167,19 @@ app.put("/updateOrder", async (req, res) => {
   };
   let output = await updateData(collection, condition, data);
   res.status(200).send(output);
+});
+
+// delete order
+app.delete("/deleteOrder", async (req, res) => {
+  let collection = "orders";
+  let condition = { _id: new ObjectId(req.body._id) };
+  let row = await getData(collection, condition);
+  if (row.length > 0) {
+    await deleteData(collection, condition);
+    res.status(200).send("Data Deleted");
+  } else {
+    res.status(200).send("No Record Found");
+  }
 });
 
 app.listen(port, (err) => {
