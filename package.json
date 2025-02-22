@@ -7,6 +7,9 @@
     "start": "node index.js",
     "dev": "nodemon index.js"
   },
+  "publishConfig": {
+    "registry": "http://43.204.111.220:8081/repository/Full-Stack-With-MERN/"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Vikas-Prince/Food-Delivery-Backend-Node.git"
