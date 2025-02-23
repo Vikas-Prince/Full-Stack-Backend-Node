@@ -5,7 +5,7 @@ pipeline {
         dockerTool 'docker' 
     }
 
-    parameter{
+    parameters{
         string(name: 'IMAGE_VERSION', defaultValue: 'latest', description: 'Docker Image Version')
     }
 
@@ -29,6 +29,14 @@ pipeline {
             steps {
                 git branch: 'main', url: 'https://github.com/Vikas-Prince/Food-Delivery-Backend-Node.git'
                 echo "Code downloaded successfully"
+            }
+        }
+
+        // install npm packages
+        stage("install dependencies"){
+            steps{
+                sh "npm install"
+                echo "Installed dependencies successfully"
             }
         }
 
@@ -100,6 +108,13 @@ pipeline {
                     sh "docker push vikasprince/MERN-Backend:${params.IMAGE_VERSION}"
                     echo "Successfully pushed Docker image to Docker Hub"
                 }
+            }
+        }
+
+        // publish artifacts to Nexus Repository
+        stage("Publish artifacts to Nexus Repository") {
+            steps{
+                sh "npm publish"
             }
         }
 

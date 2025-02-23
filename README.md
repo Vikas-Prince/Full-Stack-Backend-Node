@@ -20,7 +20,7 @@ This repository is focused solely on the backend application. For the other part
 
 - [**MongoDB Configuration and K8s Setup**](https://github.com/Vikas-Prince/mongo-sharded-cluster-on-k8s)
 - [**Frontend Application**](https://github.com/Vikas-Prince/Food-Delivery-Frontend-React)
-- [**GitOps Repository** (ArgoCD & EKS Setup)](https://github.com/Vikas-Prince/Food-Delivery-GitOps)
+- [**GitOps Repository** (ArgoCD)](https://github.com/Vikas-Prince/Food-Delivery-GitOps)
 
 ### Backend Repository
 
@@ -121,4 +121,3 @@ After the backend API is deployed successfully via ArgoCD, you will be able to a
 ## Contributing
 
 Feel free to contribute to this repository! Open a pull request or create an issue if you find a bug or have suggestions for improvements.
-
