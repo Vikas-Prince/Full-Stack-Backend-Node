@@ -9,8 +9,8 @@ let db;
 async function dbConnect() {
   const client = new MongoClient(mongoUrl);
   await client.connect();
-  db = client.db("food_store");
-  //   console.log(db);
+  db = client.db("FullStack");
+  console.log(db);
   console.log(`Connected to database`);
 }
 
