@@ -8,7 +8,7 @@ import {
   getMenuData,
   updateData,
   deleteData,
-} from "./src/controller/dbController";
+} from "./src/controller/dbController.js";
 import cors from "cors";
 
 dotenv.config();
@@ -187,3 +187,6 @@ app.listen(port, (err) => {
   if (err) throw err;
   console.log(`Server listening on ${port}`);
 });
+
+
+export default app;
