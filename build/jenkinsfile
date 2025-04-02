@@ -1,169 +1,171 @@
 pipeline {
-    agent { label "slave" }
+    agent any
 
-    tools {
-        dockerTool 'docker' 
-    }
-
-    parameters{
+    parameters {
         string(name: 'IMAGE_VERSION', defaultValue: 'latest', description: 'Docker Image Version')
     }
-
+    
     environment {
-        SONAR_HOME = tool 'sonar-scanner'
+        DOCKER_IMAGE = "vikasprince30809/myapp:${params.IMAGE_VERSION}"
+        NEXUS_REPO = "http://nexus.example.com/repository/npm-hosted/"
+        GIT_REPO = "https://github.com/your-repo/k8s-deployment.git"
+        SONAR_HOME = tool name: 'sonar-scanner', type: 'ToolType'
     }
 
     stages {
-        
-        // Clean up workspace to avoid issues with old build artifacts
-        stage("Clean up workspace") {
+        stage('Install Dependencies') {
             steps {
-                script {
-                    cleanWs()
+                sh 'npm install'
+            }
+        }
+
+        stage('Parallel Code Quality & Security Checks') {
+            parallel {
+                stage('ESLint Code Quality Analysis') {
+                    steps {
+                        sh 'npm run lint | tee eslint-report.log'
+                    }
+                    post {
+                        always {
+                            archiveArtifacts artifacts: 'eslint-report.log'
+                        }
+                    }
+                }
+                
+                stage('Mocha Test Cases') {
+                    steps {
+                        sh 'npx mocha --reporter mochawesome --reporter-options reportDir=mocha-reports,reportFilename=mocha-report'
+                    }
+                    post {
+                        always {
+                            archiveArtifacts artifacts: 'mocha-reports/*.json, mocha-reports/*.html'
+                        }
+                    }
+                }
+                
+                stage('Trivy Filesystem Scan') {
+                    steps {
+                        sh 'trivy fs  --format json -o trivy-filesystem.json .'
+                    }
+                    post {
+                        always {
+                            archiveArtifacts artifacts: 'trivy-filesystem.json'
+                        }
+                    }
                 }
             }
         }
 
-        // Checkout source code from GitHub
-        stage("Checkout SCM From GitHub") {
-            steps {
-                git branch: 'main', url: 'https://github.com/Vikas-Prince/Food-Delivery-Backend-Node.git'
-                echo "Code downloaded successfully"
-            }
-        }
-
-        // install npm packages
-        stage("install dependencies"){
-            steps{
-                sh "npm install"
-                echo "Installed dependencies successfully"
-            }
-        }
-
-        // Run unit tests
-        stage("Test the application") {
-            steps {
-                sh "npm run test"
-            }
-        }
-
-        // Scan file system for vulnerabilities with Trivy
-        stage("File System Scans for Vulnerabilities") {
-            steps {
-                sh "trivy fs --format json -o trivy-fs-report.json ."
-                echo "Trivy scan successful"
-            }
-        }
-
-        // SonarQube code quality check
-        stage("Checking Code Quality") {
+        stage('SonarQube Code Quality Scan') {
             steps {
                 script {
-                    withSonarQubeEnv('sonar-scanner') {
+                    withSonarQubeEnv('SonarQube') {
                         sh """
-                        $SONAR_HOME/bin/sonar-scanner \
-                            -Dsonar.projectName=MERN-Backend \
-                            -Dsonar.projectKey="MERN-Backend" \
-                            -Dsonar.sources=. \
+
+                         ${SONAR_HOME}/bin/sonar-scanner 
+                        -Dsonar.projectName=MERN-Backend \
+                        -Dsonar.projectKey="MERN-Backend" \
+                        -Dsonar.sources=. \
+
                         """
                     }
                 }
             }
         }
 
-        // Wait for SonarQube Quality Gate result
-        stage("Quality Gate") {
+        stage('SonarQube Quality Gate Check') {
             steps {
                 script {
-                    def qualityGate = waitForQualityGate(credentialsId: 'sonar-token', abortPipeline: true)
-                    if (qualityGate.status != 'OK') {
-                        error("Quality Gate failed: ${qualityGate.status}")
+                    timeout(time: 5, unit: 'MINUTES') {
+                        waitForQualityGate abortPipeline: true
                     }
                 }
             }
         }
 
-        // Build Docker Image
-        stage("Build Docker Image") {
+        stage('Build Docker Image') {
             steps {
-                withDockerRegistry(credentialsId: 'docker-cred', url: "https://docker.io") {
-                    sh "docker build -t vikasprince/MERN-Backend:${params.IMAGE_VERSION} ."
-                    echo "Docker image built successfully"
+                sh "docker build -t ${DOCKER_IMAGE} ."
+            }
+        }
+
+        stage('Trivy Image Security Scan') {
+            steps {
+                sh "trivy image --format json -o trivy-image.json ${DOCKER_IMAGE}"
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'trivy-image.json'
                 }
             }
         }
 
-        // Trivy scan the Docker image for vulnerabilities
-        stage("Trivy Docker Image Scans for Vulnerabilities") {
-            steps {
-                sh "trivy image --format json -o trivy-image-report.json vikasprince/MERN-Backend:${params.IMAGE_VERSION}"
-                echo "Docker image scan completed"
-            }
-        }
-
-        // Push Docker image to Docker Hub
-        stage("Push Image to Docker Hub") {
-            steps {
-                withDockerRegistry(credentialsId: 'docker-cred', url: "https://docker.io") {
-                    sh "docker push vikasprince/MERN-Backend:${params.IMAGE_VERSION}"
-                    echo "Successfully pushed Docker image to Docker Hub"
-                }
-            }
-        }
-
-        // publish artifacts to Nexus Repository
-        stage("Publish artifacts to Nexus Repository") {
-            steps{
-                sh "npm publish"
-            }
-        }
-
-        stage("Clone GitOps repository") {
-            steps{
-                script{
-                    git branch: 'main', url: 'https://github.com/Vikas-Prince/Food-Delivery-Infra-Setup.git'  
-                    echo "gitOps repo cloned successfully"  
-                }
-            }
-        }
-
-        // Update GitOps repository dynamically
-        stage("Update GitOps repository"){
-            steps{
-                script{
-                    withCredentials([gitUserNamePassword(credentialsId: 'git-cred', gitToolName: 'Default')]){
-                        dir(food-Delivery-GitOps){
-                        sh '''
-                            sed -i "s|image: vikasprince/MERN-Frontend:.*|image: vikasprince/MERN-Frontend:${params.IMAGE_VERSION}|" ./base/frontend/frontend-deployment.yml
-                        '''
-                        echo "Successfully updated Docker tag in manifest file"
+        stage('Parallel Docker Push & Artifact Packaging') {
+            parallel {
+                stage('Push Docker Image to Docker Hub') {
+                    steps {
+                        withDockerRegistry([credentialsId: 'docker-hub', url: 'https://registry.hub.docker.com/v2/vikasprince']) {
+                            sh "docker push ${DOCKER_IMAGE}"
                         }
-
-                        dir(food-Delivery-GitOps){
-                        sh '''
-                            git config --global user.name "jenkins"
-                            git config --global user.email "jenkins@gmail.com"
-                            git add .
-                            git commit -m "updated Version:${params.IMAGE_VERSION} of docker image by jenkins"
-                            git push origin main
-                        '''
-                        echo "Successfully updated version and environment"
-                        }
+                    }
+                }
+                
+                stage('Package Artifact using npm pack') {
+                    steps {
+                        sh "npm pack --filename ${DOCKER_IMAGE}.tgz"
                     }
                 }
             }
         }
 
+        stage('Push Tarball to Nexus Repository') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'NEXUS_CREDENTIALS', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
+                sh """
+                    echo "//3.109.153.126:8081/repository/backend-repo/:username=\${NEXUS_USER}" > ~/.npmrc
+                    echo "//3.109.153.126:8081/repository/backend-repo/:_password=$(echo -n \${NEXUS_PASS} | base64)" >> ~/.npmrc
+                    echo "//3.109.153.126:8081/repository/backend-repo/:always-auth=true" >> ~/.npmrc
+                    npm publish food-d.tgz --registry=http://3.109.153.126:8081/repository/backend-repo/
+                """
+                }
+            }
+        }
+
+        stage('GitOps Integration - Update Kubernetes Manifests') {
+            steps {
+                script {
+                    sh """
+                        git clone ${GIT_REPO} k8s-deployment
+                        cd k8s-deployment
+                        git config user.name 'jenkins'
+                        git checkout -b update-${env.BUILD_NUMBER}
+                        sed -i 's|image: .*|image: ${DOCKER_IMAGE}|' backend/overlays/stage/canary/deployment-patch.yaml
+                        git add .
+                        git commit -m "Updated image to ${DOCKER_IMAGE}"
+                        git push origin update-${env.BUILD_NUMBER}
+                    """
+                }
+            }
+        }
+
+        stage('Raise Pull Request for Deployment') {
+            steps {
+                withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
+                    script {
+                        sh """
+                            cd k8s-deployment
+                            gh auth login --with-token <<< "$GITHUB_TOKEN"
+                            gh pr create --title 'Deploy ${DOCKER_IMAGE}' --body 'Automated PR from Jenkins' --base main --head update-${env.BUILD_NUMBER} --repo ${GITHUB_USER}/k8s-deployment
+                        """
+                    }
+                }
+            }
+        }
     }
 
-    // Post actions on pipeline success
     post {
-        success {
+        always {
             script {
-                // Archive artifacts including build logs
-                archiveArtifacts artifacts: '**/*.json, **/*.log', allowEmptyArchive: true
-
-                // Send email notification with build log and Trivy scan results
                 emailext(
                     to: "vikasprince30809@gmail.com",
                     subject: "Jenkins Build Notification: ${env.JOB_NAME}",
@@ -178,40 +180,13 @@ pipeline {
                     - Build Duration: ${currentBuild.durationString}
                     - Build URL: ${env.BUILD_URL}
 
-                    Regards,
-                    Jenkins
-                    """,
-                    from: "jenkins@gmail.com",
-                    attachmentsPattern: "trivy*.json, *.log"  
-                )
-            }
-        }
-
-        failure {
-            script {
-                archiveArtifacts artifacts: '**/*.json, **/*.log', allowEmptyArchive: true
-
-                emailext(
-                    to: "vikasprince30809@gmail.com",
-                    subject: "Jenkins Build Failed: ${env.JOB_NAME}",
-                    body: """
-                    Hi Team,
-
-                    The build for job '${env.JOB_NAME}' has failed!
-
-                    Build Details:
-                    - Build Number: ${env.BUILD_NUMBER}
-                    - Build Status: ${currentBuild.currentResult}
-                    - Build Duration: ${currentBuild.durationString}
-                    - Build URL: ${env.BUILD_URL}
-
-                    Please check the Jenkins console for further details.
+                    Reports are attached.
 
                     Regards,
                     Jenkins
                     """,
                     from: "jenkins@gmail.com",
-                    attachmentsPattern: "trivy*.json, *.log"  
+                    attachmentsPattern: "eslint-report.log, mocha-reports/*.json, mocha-reports/*.html, trivy-filesystem.json, trivy-image.json"
                 )
             }
         }
